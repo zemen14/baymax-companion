@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baymax — Your Personal Assistant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --ink:#2b2f36; --soft:#6b7280; --accent:#e2574c; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    min-height: 100vh; overflow-x: hidden; color: var(--ink);
+    background: radial-gradient(1200px 700px at 50% 30%, #ffffff 0%, #eef1f5 55%, #dde4ec 100%);
+    display: flex; flex-direction: column; align-items: center;
+  }
+  h1 {
+    margin-top: 34px; font-size: clamp(28px, 5vw, 54px); font-weight: 800; letter-spacing: .5px;
+    color: #39404b; text-align: center; z-index: 0; user-select: none;
+  }
+  h1 span { color: var(--accent); }
+  .stage {
+    position: relative; width: min(430px, 82vw); aspect-ratio: 1/1; margin-top: 6px;
+    perspective: 900px; z-index: 1;
+  }
+  .baymax {
+    position: absolute; inset: 0; border-radius: 50%;
+    transform-style: preserve-3d; will-change: transform;
+    filter: drop-shadow(0 24px 24px rgba(40,50,70,.25));
+  }
+  .baymax img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+  /* Eye overlays: white covers sit on the photo's eyes, pupils move with the cursor */
+  .eye-cover {
+    position: absolute; width: 14.5%; height: 16%; background: #fdfdfd; border-radius: 50%;
+    transform: translate(-50%,-50%);
+  }
+  .pupil {
+    position: absolute; width: 8%; height: 10.5%; background: #191d23; border-radius: 50%;
+    will-change: transform;
+  }
+  .bubble {
+    margin-top: 14px; max-width: 560px; width: calc(100% - 40px);
+    background: #fff; border: 1px solid #e3e8ef; border-radius: 16px;
+    padding: 14px 18px; font-size: 17px; line-height: 1.45; min-height: 56px;
+    box-shadow: 0 8px 24px rgba(40,50,70,.08); text-align: center;
+  }
+  .bubble .who { display:block; font-size: 12px; letter-spacing: 1.5px; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 16px; padding: 0 16px; }
+  button {
+    border: none; cursor: pointer; font-size: 15px; font-weight: 600;
+    padding: 11px 18px; border-radius: 999px; background: #39404b; color: #fff;
+    transition: transform .15s ease, background .15s ease;
+  }
+  button:hover { transform: translateY(-1px); background: #2c313a; }
+  button.primary { background: var(--accent); }
+  button.primary:hover { background: #cf463c; }
+  button.listening { background: #2e9e5b; }
+  .askbar { display: flex; gap: 8px; margin-top: 12px; width: min(560px, calc(100% - 40px)); }
+  .askbar input {
+    flex: 1; padding: 11px 14px; font-size: 15px; border-radius: 999px;
+    border: 1px solid #cfd6df; outline: none; background: #fff;
+  }
+  .askbar input:focus { border-color: var(--accent); }
+  .status { margin-top: 10px; font-size: 13px; color: var(--soft); text-align: center; padding: 0 16px; }
+  .notes {
+    margin: 20px 0 34px; width: min(560px, calc(100% - 40px));
+    background: rgba(255,255,255,.7); border: 1px dashed #c3ccd6; border-radius: 14px; padding: 12px 16px;
+  }
+  .notes h3 { font-size: 13px; letter-spacing: 1.2px; color: var(--soft); margin-bottom: 6px; }
+  .notes li { font-size: 14px; margin-left: 18px; line-height: 1.5; }
+  .notes .empty { font-size: 14px; color: var(--soft); }
+  /* Background mode: Baymax shrinks to a floating companion in the corner */
+  body.mini { background: transparent; }
+  body.mini h1, body.mini .bubble, body.mini .controls, body.mini .askbar, body.mini .status, body.mini .notes { display: none; }
+  body.mini .stage {
+    position: fixed; right: 18px; bottom: 18px; width: 92px; margin: 0; cursor: pointer; z-index: 99;
+  }
+  @media (prefers-reduced-motion: reduce) { .baymax { transition: none !important; } }
+</style>
+</head>
+<body>
+  <h1>HELLO. I AM <span>BAYMAX</span>.</h1>
+
+  <div class="stage" id="stage" title="Click Baymax to talk">
+    <div class="baymax" id="baymax">
+      <img src="data:image/jpeg;base64,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" alt="Baymax">
+      <div class="eye-cover" style="left:37.6%;top:29.4%"></div>
+      <div class="eye-cover" style="left:62.6%;top:33%"></div>
+      <div class="pupil" id="pupilL" style="left:37.6%;top:29.4%"></div>
+      <div class="pupil" id="pupilR" style="left:62.6%;top:33%"></div>
+    </div>
+  </div>
+
+  <div class="bubble"><span class="who">BAYMAX</span><span id="speech">Hello. I am Baymax, your personal assistant. Click the microphone, say my name, and tell me what you need.</span></div>
+
+  <div class="controls">
+    <button class="primary" id="micBtn">🎙 Talk to Baymax</button>
+    <button id="bgBtn">Stay in background</button>
+    <button id="stopBtn">Be quiet</button>
+  </div>
+
+  <div class="askbar">
+    <input id="askInput" type="text" placeholder="…or type a command: 'what time is it', 'open GitHub', 'remember to call Abrham'">
+    <button id="askBtn">Ask</button>
+  </div>
+
+  <div class="status" id="status">Baymax watches your cursor. Say “Baymax” out loud, then a command, for example “Baymax, what time is it?”</div>
+
+  <div class="notes">
+    <h3>THINGS BAYMAX REMEMBERS FOR YOU</h3>
+    <ul id="noteList"><li class="empty" style="list-style:none;margin:0">Nothing yet. Say “Baymax, remember to …”</li></ul>
+  </div>
+
+<script>
+(function () {
+  const baymax = document.getElementById('baymax');
+  const pupilL = document.getElementById('pupilL');
+  const pupilR = document.getElementById('pupilR');
+  const speechEl = document.getElementById('speech');
+  const statusEl = document.getElementById('status');
+  const stage = document.getElementById('stage');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- Gaze: Baymax follows your cursor (blog technique, photo version) ---------- */
+  let tx = 0, ty = 0;          // target gaze -1..1
+  let gx = 0, gy = 0;          // eased gaze
+  let blinkScale = 1;          // 1 = eyes open, near 0 = blinking
+  let lastMove = Date.now();
+  let idleTarget = null, idleTimer = 0;
+
+  // Gaze is measured from Baymax's own centre, so looking above or below him
+  // gets the full up/down range instead of only the side-to-side range.
+  function gazeFromPoint(x, y) {
+    const r = stage.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    tx = Math.max(-1, Math.min(1, (x - cx) / (window.innerWidth / 2)));
+    ty = Math.max(-1, Math.min(1, (y - cy) / (window.innerHeight / 2)));
+  }
+  window.addEventListener('mousemove', (e) => {
+    gazeFromPoint(e.clientX, e.clientY);
+    lastMove = Date.now(); idleTarget = null;
+  });
+  window.addEventListener('touchmove', (e) => {
+    gazeFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    lastMove = Date.now();
+  }, { passive: true });
+
+  function lookAround() { // idle for 3s: Baymax looks around on his own, like the blog version
+    if (Date.now() - lastMove < 3000) return;
+    if (!idleTarget || Math.hypot(tx - idleTarget.x, ty - idleTarget.y) < 0.05) {
+      idleTarget = { x: (Math.random() * 1.6 - 0.8), y: (Math.random() * 1.2 - 0.6) };
+    }
+    tx += (idleTarget.x - tx) * 0.02;
+    ty += (idleTarget.y - ty) * 0.02;
+  }
+
+  function frame() {
+    lookAround();
+    gx += (tx - gx) * 0.07;
+    gy += (ty - gy) * 0.07;
+    if (!reduced) {
+      baymax.style.transform =
+        'rotateY(' + (gx * 7).toFixed(2) + 'deg) rotateX(' + (-gy * 8).toFixed(2) + 'deg) translate(' +
+        (gx * 10).toFixed(1) + 'px,' + (gy * 12).toFixed(1) + 'px)';
+    }
+    const px = (gx * 10).toFixed(1), py = (gy * 11).toFixed(1);
+    pupilL.style.transform = 'translate(calc(-50% + ' + px + 'px), calc(-50% + ' + py + 'px)) scaleY(' + blinkScale + ')';
+    pupilR.style.transform = 'translate(calc(-50% + ' + px + 'px), calc(-50% + ' + py + 'px)) scaleY(' + blinkScale + ')';
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* ---------- Blink ---------- */
+  function blink() {
+    blinkScale = 0.08;
+    setTimeout(() => { blinkScale = 1; }, 130);
+    setTimeout(blink, 2600 + Math.random() * 3200);
+  }
+  setTimeout(blink, 1800);
+
+  /* ---------- Voice out: a soft, slow, gentle Baymax-like voice ---------- */
+  let voice = null;
+  function pickVoice() {
+    const vs = speechSynthesis.getVoices();
+    voice = vs.find(v => /en[-_]US/i.test(v.lang) && /male|david|guy|christopher/i.test(v.name))
+         || vs.find(v => /en[-_]US/i.test(v.lang))
+         || vs.find(v => /^en/i.test(v.lang)) || vs[0] || null;
+  }
+  if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+
+  function say(text) {
+    speechEl.textContent = text;
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if (voice) u.voice = voice;
+    u.rate = 0.88; u.pitch = 0.82; u.volume = 1;
+    speechSynthesis.speak(u);
+  }
+
+  /* ---------- Doing work: the command brain ---------- */
+  const notes = [];
+  const noteList = document.getElementById('noteList');
+  function addNote(text) {
+    notes.push(text);
+    noteList.innerHTML = notes.map(n => '<li>' + n.replace(/</g, '&lt;') + '</li>').join('');
+  }
+  const jokes = [
+    'Why do programmers prefer dark mode? Because light attracts bugs.',
+    'I would tell you a joke about UDP, but you might not get it. And I would not know.',
+    'There are only 10 kinds of people: those who understand binary and those who do not.',
+    'On a scale of one to ten, how would you rate your sense of humor? I give that joke a seven.'
+  ];
+  const sites = {
+    youtube: 'https://www.youtube.com', github: 'https://github.com/zemen14',
+    linkedin: 'https://www.linkedin.com/in/zemen-bariagabr-36b9a5227',
+    gmail: 'https://mail.google.com', google: 'https://www.google.com',
+    instagram: 'https://www.instagram.com'
+  };
+
+  function doWork(raw) {
+    const cmd = (raw || '').toLowerCase().trim().replace(/^baymax[, ]*/, '');
+    if (!cmd) { say('I am here. What would you like me to do?'); return; }
+    let m;
+    if (/\b(time|clock)\b/.test(cmd)) {
+      say('It is ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.');
+    } else if (/\b(date|day is it|today)\b/.test(cmd)) {
+      say('Today is ' + new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) + '.');
+    } else if (m = cmd.match(/^(?:open|go to|launch)\s+(.+)/)) {
+      const key = Object.keys(sites).find(k => m[1].includes(k));
+      if (key) { say('Opening ' + key + ' for you now.'); window.open(sites[key], '_blank'); }
+      else say('I do not know that place yet. I can open YouTube, GitHub, LinkedIn, Gmail, Google, or Instagram.');
+    } else if (m = cmd.match(/^(?:search for|search|google|look up)\s+(.+)/)) {
+      say('Searching for ' + m[1] + '.');
+      window.open('https://www.google.com/search?q=' + encodeURIComponent(m[1]), '_blank');
+    } else if (m = cmd.match(/^(?:remember to|remember|note|remind me to)\s+(.+)/)) {
+      addNote(m[1]);
+      say('I will remember: ' + m[1] + '. It is on your list below.');
+    } else if (/joke|funny/.test(cmd)) {
+      say(jokes[Math.floor(Math.random() * jokes.length)]);
+    } else if (/what can you do|help|abilities/.test(cmd)) {
+      say('I can tell you the time and date, open websites, search the web, remember notes for you, and tell questionable jokes. I can also shrink into your background and wait for my name.');
+    } else if (/background|hide|shrink|minimi/.test(cmd)) {
+      setMini(true); say('I will stay in the background. Say my name when you need me.');
+    } else if (/come back|expand|show yourself/.test(cmd)) {
+      setMini(false); say('Hello again. I am satisfied with my care.');
+    } else if (/your name|who are you/.test(cmd)) {
+      say('I am Baymax, your personal assistant. I look after your tasks so you can look after your goals.');
+    } else if (/hello|hi\b|hey/.test(cmd)) {
+      say('Hello. I am glad to see you. How may I help?');
+    } else if (/thank/.test(cmd)) {
+      say('You are welcome. I am satisfied with my care.');
+    } else {
+      say('I am not able to do that yet, but I am learning. I could search the web for it, if you would like.');
+      statusEl.textContent = 'Tip: say “search for ' + raw + '” and Baymax will look it up.';
+    }
+  }
+
+  /* ---------- Voice in: wake word + commands ---------- */
+  const micBtn = document.getElementById('micBtn');
+  let recog = null, listening = false, armed = false;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR) {
+    recog = new SR();
+    recog.continuous = true; recog.interimResults = false; recog.lang = 'en-US';
+    recog.onresult = (e) => {
+      const said = e.results[e.results.length - 1][0].transcript.trim();
+      statusEl.textContent = 'You said: “' + said + '”';
+      if (/baymax/i.test(said)) {
+        const rest = said.replace(/.*?baymax/i, '').trim();
+        if (rest) doWork(rest); else { armed = true; say('Yes? I am listening.'); }
+      } else if (armed) { armed = false; doWork(said); }
+    };
+    recog.onend = () => { if (listening) { try { recog.start(); } catch (e) {} } };
+    recog.onerror = (e) => { if (e.error === 'not-allowed') { listening = false; micBtn.classList.remove('listening'); micBtn.textContent = '🎙 Talk to Baymax'; statusEl.textContent = 'Microphone is blocked. Allow mic access, or type your command below.'; } };
+  }
+  micBtn.addEventListener('click', () => {
+    if (!SR) { statusEl.textContent = 'Voice input needs Chrome. You can still type commands below, and Baymax will speak back.'; say('My ears need Chrome, but my voice works. Type a command and I will do my best.'); return; }
+    if (listening) { listening = false; recog.stop(); micBtn.classList.remove('listening'); micBtn.textContent = '🎙 Talk to Baymax'; statusEl.textContent = 'Listening stopped.'; }
+    else { listening = true; try { recog.start(); } catch (e) {} micBtn.classList.add('listening'); micBtn.textContent = '● Listening… tap to stop'; say('Hello. I am listening.'); }
+  });
+
+  /* ---------- Buttons and typing ---------- */
+  function setMini(on) { document.body.classList.toggle('mini', on); }
+  document.getElementById('bgBtn').addEventListener('click', () => { setMini(true); say('I will wait here, quietly, in the background.'); });
+  document.getElementById('stopBtn').addEventListener('click', () => { if ('speechSynthesis' in window) speechSynthesis.cancel(); });
+  stage.addEventListener('click', () => { if (document.body.classList.contains('mini')) setMini(false); });
+  const askInput = document.getElementById('askInput');
+  function ask() { const v = askInput.value.trim(); if (v) { doWork(v); askInput.value = ''; } }
+  document.getElementById('askBtn').addEventListener('click', ask);
+  askInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') ask(); });
+})();
+</script>
+</body>
+</html>
